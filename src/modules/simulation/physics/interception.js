@@ -37,8 +37,51 @@ export function calculateOptimalInterceptPoint(domePos, missile, interceptorSpee
       (dy / distance) * interceptorSpeed,
       (dz / distance) * interceptorSpeed
     ],
-    targetPoint: bestPoint
+    targetPoint: bestPoint,
+    seekMode: true
   }
+}
+
+// Proportional Navigation Guidance for interceptors
+export function calculateProportionalNavigation(interceptorPos, interceptorVel, targetPos, targetVel, N = 3) {
+  const dx = targetPos[0] - interceptorPos[0]
+  const dy = targetPos[1] - interceptorPos[1]
+  const dz = targetPos[2] - interceptorPos[2]
+  const range = Math.sqrt(dx*dx + dy*dy + dz*dz)
+  
+  if (range < 0.1) return interceptorVel
+  
+  const losX = dx / range
+  const losY = dy / range
+  const losZ = dz / range
+  
+  const relVelX = targetVel[0] - interceptorVel[0]
+  const relVelY = targetVel[1] - interceptorVel[1]
+  const relVelZ = targetVel[2] - interceptorVel[2]
+  
+  const closingRate = -(relVelX * losX + relVelY * losY + relVelZ * losZ)
+  
+  const losRateX = (relVelX - closingRate * losX) / range
+  const losRateY = (relVelY - closingRate * losY) / range
+  const losRateZ = (relVelZ - closingRate * losZ) / range
+  
+  const speed = Math.sqrt(interceptorVel[0]**2 + interceptorVel[1]**2 + interceptorVel[2]**2)
+  
+  const accelX = N * closingRate * losRateX
+  const accelY = N * closingRate * losRateY
+  const accelZ = N * closingRate * losRateZ
+  
+  const newVelX = interceptorVel[0] + accelX * 0.016
+  const newVelY = interceptorVel[1] + accelY * 0.016
+  const newVelZ = interceptorVel[2] + accelZ * 0.016
+  
+  const newSpeed = Math.sqrt(newVelX**2 + newVelY**2 + newVelZ**2)
+  
+  return [
+    (newVelX / newSpeed) * speed,
+    (newVelY / newSpeed) * speed,
+    (newVelZ / newSpeed) * speed
+  ]
 }
 
 function calculateDirectIntercept(domePos, missilePos, missileVel, interceptorSpeed) {
@@ -53,8 +96,10 @@ function calculateDirectIntercept(domePos, missilePos, missileVel, interceptorSp
       (dy / distance) * interceptorSpeed,
       (dz / distance) * interceptorSpeed
     ],
-    targetPoint: missilePos
+    targetPoint: missilePos,
+    seekMode: true
   }
 }
+
 
 

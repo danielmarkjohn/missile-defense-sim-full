@@ -1,4 +1,5 @@
 import { projectTrajectory } from './projection'
+import { calculateProportionalNavigation } from './interception'
 
 const GRAVITY = -9.81
 const DRAG_COEFFICIENT = 0.01
@@ -31,28 +32,51 @@ export function updateMissile(missile, dt, gravity = 9.8, drag = 0.01) {
 }
 
 export function updateInterceptor(interceptor, dt, missiles) {
-  const newPos = interceptor.position.map((p, i) => p + interceptor.velocity[i] * dt)
+  const targetMissile = missiles.find(m => m.id === interceptor.targetId && m.active)
+  
+  if (!targetMissile) {
+    return { ...interceptor, active: false }
+  }
+  
+  // Apply proportional navigation guidance
+  const newVel = calculateProportionalNavigation(
+    interceptor.position,
+    interceptor.velocity,
+    targetMissile.position,
+    targetMissile.velocity,
+    4 // Navigation constant
+  )
+  
+  // Apply gravity
+  newVel[1] -= 9.8 * dt * 0.3 // Reduced gravity for powered flight
+  
+  const newPos = interceptor.position.map((p, i) => p + newVel[i] * dt)
   
   // Check if hit ground
   if (newPos[1] <= 0) {
     return { ...interceptor, active: false }
   }
   
-  // Check if reached target point
-  if (interceptor.targetPoint) {
-    const dx = newPos[0] - interceptor.targetPoint[0]
-    const dy = newPos[1] - interceptor.targetPoint[1]
-    const dz = newPos[2] - interceptor.targetPoint[2]
-    const distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
-    
-    if (distance < 1) {
-      return { ...interceptor, active: false }
+  // Check collision with target
+  const dx = newPos[0] - targetMissile.position[0]
+  const dy = newPos[1] - targetMissile.position[1]
+  const dz = newPos[2] - targetMissile.position[2]
+  const distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
+  
+  if (distance < 2) {
+    return { 
+      ...interceptor, 
+      active: false, 
+      exploded: true,
+      explosionPos: newPos,
+      explosionTime: Date.now()
     }
   }
   
   return {
     ...interceptor,
-    position: newPos
+    position: newPos,
+    velocity: newVel
   }
 }
 
@@ -85,6 +109,8 @@ export function update(entity, dt) {
     velocity: newVelocity
   }
 }
+
+
 
 
 
