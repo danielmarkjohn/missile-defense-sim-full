@@ -1,5 +1,5 @@
 // Algorithm 1: Numerical Interception from AM205 report
-export function calculateOptimalInterceptPoint(domePos, missile, interceptorSpeed = 60) {
+export function calculateOptimalInterceptPoint(domePos, missile, interceptorSpeed = 80) {
   if (!missile.projectedPath || missile.projectedPath.length < 4) {
     return calculateDirectIntercept(domePos, missile.position, missile.velocity, interceptorSpeed)
   }

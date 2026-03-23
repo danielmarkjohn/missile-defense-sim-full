@@ -10,12 +10,12 @@ import SimulationEngine from './SimulationEngine'
 export default function Scene() {
   return (
     <>
-      <PerspectiveCamera 
+      <PerspectiveCamera
         makeDefault
         position={[100, 80, 100]}
-        fov={60}
+        fov={90}
       />
-      
+
       <OrbitControls />
       
       <ambientLight intensity={0.4} />
@@ -28,23 +28,16 @@ export default function Scene() {
       />
       <hemisphereLight intensity={0.3} groundColor="#001100" />
 
-      {/* Atmospheric fog */}
       <fog attach="fog" args={['#000000', 100, 300]} />
-      
-      {/* Black sky */}
       <color attach="background" args={['#000000']} />
       
-      {/* Ground - larger to match increased radius */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[600, 600]} />
         <meshStandardMaterial color="#0a0a0a" />
       </mesh>
 
-      {/* Grid for scale - larger and more visible */}
       <gridHelper args={[600, 120, '#00ff00', '#003300']} position={[0, 0.05, 0]} />
 
-      {/* Reference planes for scale */}
-      {/* XZ plane at ground level */}
       <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[600, 600]} />
         <meshBasicMaterial 
@@ -55,7 +48,6 @@ export default function Scene() {
         />
       </mesh>
 
-      {/* XY plane (vertical) */}
       <mesh position={[0, 60, 0]} rotation={[0, 0, 0]}>
         <planeGeometry args={[600, 120]} />
         <meshBasicMaterial 
@@ -67,7 +59,6 @@ export default function Scene() {
         />
       </mesh>
 
-      {/* YZ plane (vertical) */}
       <mesh position={[0, 60, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[600, 120]} />
         <meshBasicMaterial 
@@ -79,16 +70,13 @@ export default function Scene() {
         />
       </mesh>
 
-      {/* Iron Dome System */}
       <IronDome />
       <DetectionRadius />
       
-      {/* Entities */}
       <Jet />
       <Missiles />
       <Interceptors />
       
-      {/* Physics Engine */}
       <SimulationEngine />
     </>
   )

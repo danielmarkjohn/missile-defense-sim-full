@@ -1,3 +1,14 @@
 .layout{display:flex;height:100vh}
 .left{flex:3;background:black}
 .right{flex:1;background:#111;color:#fff;padding:10px}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02);
+  }
+}

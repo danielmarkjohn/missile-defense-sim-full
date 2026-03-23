@@ -5,18 +5,18 @@ import { TrackingChart } from './components/TrackingChart'
 export default function Sidebar() {
   const [activeTab, setActiveTab] = useState('controls')
   
-  const { 
-    running, 
-    jet, 
-    missiles, 
+  const {
+    running,
+    jet,
+    missiles,
     interceptors,
     ironDome,
     constants,
     timeScale,
     start,
     pause,
-    launchJet, 
-    releaseMissile, 
+    launchJet,
+    releaseMissile,
     reset,
     setJetSpeed,
     setJetAltitude,
@@ -24,39 +24,23 @@ export default function Sidebar() {
   } = useSimStore()
 
   const matrixGreen = '#00ff41'
-  const darkGreen = '#003b00'
-  const glowGreen = '#39ff14'
-
-  const tabStyle = (isActive) => ({
-    flex: 1,
-    padding: '8px 4px',
-    background: isActive ? `linear-gradient(135deg, ${darkGreen} 0%, #005500 100%)` : 'transparent',
-    color: isActive ? glowGreen : matrixGreen,
-    border: `1px solid ${isActive ? glowGreen : matrixGreen}`,
-    borderBottom: 'none',
-    cursor: 'pointer',
-    fontSize: '11px',
-    fontWeight: 'bold',
-    fontFamily: '"Courier New", monospace',
-    textShadow: isActive ? `0 0 5px ${glowGreen}` : 'none',
-    transition: 'all 0.2s',
-    opacity: isActive ? 1 : 0.6
-  })
+  const darkGreen = '#003300'
+  const glowGreen = '#00ff65'
 
   const buttonStyle = (disabled = false) => ({
     width: '100%',
-    padding: '8px',
+    padding: '8px 12px',
     marginBottom: '6px',
-    background: disabled ? darkGreen : `linear-gradient(135deg, ${darkGreen} 0%, #005500 100%)`,
-    color: disabled ? '#005500' : matrixGreen,
-    border: `1px solid ${disabled ? '#003300' : matrixGreen}`,
-    borderRadius: '2px',
+    background: disabled ? darkGreen : `linear-gradient(135deg, ${matrixGreen} 0%, #00cc33 100%)`,
+    color: disabled ? '#004400' : '#000000',
+    border: `1px solid ${disabled ? '#002200' : matrixGreen}`,
+    borderRadius: '3px',
     cursor: disabled ? 'not-allowed' : 'pointer',
+    fontFamily: '"Courier New", monospace',
     fontSize: '11px',
     fontWeight: 'bold',
-    fontFamily: '"Courier New", monospace',
     textShadow: disabled ? 'none' : `0 0 5px ${glowGreen}`,
-    boxShadow: disabled ? 'none' : `0 0 8px ${darkGreen}`,
+    boxShadow: disabled ? 'none' : `0 0 10px ${darkGreen}`,
     transition: 'all 0.2s',
     opacity: disabled ? 0.5 : 1
   })
@@ -96,7 +80,7 @@ export default function Sidebar() {
       </div>
 
       {/* Status Bar */}
-      <div style={{ 
+      <div style={{
         padding: '8px 15px',
         background: 'rgba(0, 255, 65, 0.05)',
         borderBottom: `1px solid ${darkGreen}`,
@@ -111,28 +95,45 @@ export default function Sidebar() {
       </div>
 
       {/* Tabs */}
-      <div style={{ 
+      <div style={{
         display: 'flex',
         borderBottom: `2px solid ${matrixGreen}`,
-        padding: '0 10px'
+        background: 'rgba(0, 255, 65, 0.03)'
       }}>
-        <button onClick={() => setActiveTab('controls')} style={tabStyle(activeTab === 'controls')}>
-          ⚙️ CONTROLS
-        </button>
-        <button onClick={() => setActiveTab('radar')} style={tabStyle(activeTab === 'radar')}>
-          📡 RADAR
-        </button>
-        <button onClick={() => setActiveTab('info')} style={tabStyle(activeTab === 'info')}>
-          ℹ️ INFO
-        </button>
+        {['controls', 'radar', 'info'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: activeTab === tab ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+              color: activeTab === tab ? glowGreen : matrixGreen,
+              border: 'none',
+              borderRight: tab !== 'info' ? `1px solid ${darkGreen}` : 'none',
+              cursor: 'pointer',
+              fontFamily: '"Courier New", monospace',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              transition: 'all 0.2s',
+              textShadow: activeTab === tab ? `0 0 8px ${glowGreen}` : 'none'
+            }}
+          >
+            {tab === 'controls' && '⚙️ CTRL'}
+            {tab === 'radar' && '📡 RADAR'}
+            {tab === 'info' && 'ℹ️ INFO'}
+          </button>
+        ))}
       </div>
 
-      {/* Scrollable Content */}
-      <div style={{ 
+      {/* Content Area */}
+      <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '12px 15px',
-        fontSize: '11px'
+        padding: '15px',
+        scrollbarWidth: 'thin',
+        scrollbarColor: `${matrixGreen} ${darkGreen}`
       }}>
         {activeTab === 'controls' && (
           <>
@@ -146,37 +147,28 @@ export default function Sidebar() {
               }}>
                 SIMULATION
               </h3>
-              <button
-                onClick={running ? pause : start}
-                style={{
-                  ...buttonStyle(),
-                  background: running 
-                    ? `linear-gradient(135deg, #ff6600 0%, #cc5500 100%)`
-                    : `linear-gradient(135deg, ${darkGreen} 0%, #005500 100%)`,
-                  color: running ? '#ffff00' : matrixGreen,
-                  border: `1px solid ${running ? '#ff6600' : matrixGreen}`,
-                  boxShadow: running ? '0 0 10px #ff6600' : `0 0 8px ${darkGreen}`
-                }}
-              >
+              <button onClick={running ? pause : start} style={buttonStyle()}>
                 {running ? '⏸️ PAUSE' : '▶️ START'}
               </button>
               
-              <label style={{ fontSize: '10px', display: 'block', marginBottom: '3px' }}>
-                Speed: {timeScale.toFixed(1)}x
-              </label>
-              <input
-                type="range"
-                min="0.5"
-                max="3"
-                step="0.1"
-                value={timeScale}
-                onChange={(e) => setTimeScale(Number(e.target.value))}
-                style={{ width: '100%', marginBottom: '8px' }}
-              />
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '10px' }}>
+                  Time Scale: {timeScale.toFixed(1)}x
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3"
+                  step="0.1"
+                  value={timeScale}
+                  onChange={(e) => setTimeScale(parseFloat(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
             </div>
-            
+
             {/* Jet Controls */}
-            <div>
+            <div style={{ marginBottom: '15px' }}>
               <h3 style={{ 
                 margin: '0 0 8px 0', 
                 fontSize: '12px', 
@@ -185,20 +177,39 @@ export default function Sidebar() {
               }}>
                 JET CONTROLS
               </h3>
-              
-              <button
-                onClick={launchJet}
-                disabled={jet.active}
-                style={{
-                  ...buttonStyle(jet.active),
-                  background: jet.active ? darkGreen : `linear-gradient(135deg, #00ff00 0%, #00cc00 100%)`,
-                  color: jet.active ? '#005500' : '#000000',
-                  border: `1px solid ${jet.active ? '#003300' : '#00ff00'}`,
-                  boxShadow: jet.active ? 'none' : '0 0 10px #00ff00'
-                }}
-              >
+              <button onClick={launchJet} disabled={jet.active} style={buttonStyle(jet.active)}>
                 ✈️ LAUNCH JET
               </button>
+              
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '10px' }}>
+                  Speed: {jet.speed}m/s
+                </label>
+                <input
+                  type="range"
+                  min="15"
+                  max="35"
+                  step="1"
+                  value={jet.speed}
+                  onChange={(e) => setJetSpeed(parseInt(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '10px' }}>
+                  Altitude: {jet.altitude}km
+                </label>
+                <input
+                  type="range"
+                  min="30"
+                  max="70"
+                  step="5"
+                  value={jet.altitude}
+                  onChange={(e) => setJetAltitude(parseInt(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
               
               <button
                 onClick={releaseMissile}
@@ -214,36 +225,6 @@ export default function Sidebar() {
               >
                 🚀 RELEASE MISSILE
               </button>
-              
-              <div style={{ marginTop: '12px' }}>
-                <label style={{ fontSize: '10px', display: 'block', marginBottom: '3px' }}>
-                  Jet Speed: {jet.speed} m/s
-                </label>
-                <input
-                  type="range"
-                  min="15"
-                  max="50"
-                  step="1"
-                  value={jet.speed}
-                  onChange={(e) => setJetSpeed(Number(e.target.value))}
-                  disabled={jet.active}
-                  style={{ width: '100%', marginBottom: '8px', opacity: jet.active ? 0.5 : 1 }}
-                />
-                
-                <label style={{ fontSize: '10px', display: 'block', marginBottom: '3px' }}>
-                  Jet Altitude: {jet.altitude} km
-                </label>
-                <input
-                  type="range"
-                  min="30"
-                  max="70"
-                  step="5"
-                  value={jet.altitude}
-                  onChange={(e) => setJetAltitude(Number(e.target.value))}
-                  disabled={jet.active}
-                  style={{ width: '100%', opacity: jet.active ? 0.5 : 1 }}
-                />
-              </div>
             </div>
 
             {/* Quick Actions */}
@@ -275,55 +256,6 @@ export default function Sidebar() {
                 TRACKING DISPLAY
               </h3>
               <TrackingChart missiles={missiles} interceptors={interceptors} />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <h3 style={{ 
-                margin: '0 0 8px 0', 
-                fontSize: '12px', 
-                color: glowGreen,
-                textShadow: `0 0 5px ${glowGreen}`
-              }}>
-                THREAT ANALYSIS
-              </h3>
-              <div style={{ fontSize: '10px', lineHeight: '1.8' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>🔴 Active Threats:</span>
-                  <span style={{ color: missiles.filter(m => m.active).length > 0 ? '#ff0000' : matrixGreen }}>
-                    {missiles.filter(m => m.active).length}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>🔵 Interceptors:</span>
-                  <span style={{ color: glowGreen }}>{interceptors.filter(i => i.active).length}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>📊 Success Rate:</span>
-                  <span style={{ color: glowGreen }}>
-                    {((ironDome.trackingAccuracy * 100).toFixed(0))}%
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>🎯 Available:</span>
-                  <span>{ironDome.maxInterceptors - interceptors.filter(i => i.active).length}</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 style={{ 
-                margin: '0 0 8px 0', 
-                fontSize: '12px', 
-                color: glowGreen,
-                textShadow: `0 0 5px ${glowGreen}`
-              }}>
-                RADAR STATUS
-              </h3>
-              <div style={{ fontSize: '10px', lineHeight: '1.8' }}>
-                <div>Detection: {ironDome.detectionRadius}km</div>
-                <div>Range: {ironDome.radarRange}km</div>
-                <div>Status: {running ? '🟢 SCANNING' : '⏸️ STANDBY'}</div>
-              </div>
             </div>
           </>
         )}
@@ -366,23 +298,6 @@ export default function Sidebar() {
                 <div>Interceptor Max V: {constants.interceptorMaxSpeed}m/s</div>
                 <div>Radar Update: {(1/constants.radarUpdateRate).toFixed(0)}Hz</div>
                 <div>Guidance Update: {(1/constants.guidanceUpdateRate).toFixed(0)}Hz</div>
-              </div>
-            </div>
-
-            <div>
-              <h3 style={{ 
-                margin: '0 0 8px 0', 
-                fontSize: '12px', 
-                color: glowGreen,
-                textShadow: `0 0 5px ${glowGreen}`
-              }}>
-                CONTROLS GUIDE
-              </h3>
-              <div style={{ fontSize: '10px', lineHeight: '1.8', opacity: 0.8 }}>
-                <div>🖱️ Left Click: Rotate</div>
-                <div>🖱️ Right Click: Pan</div>
-                <div>🖱️ Scroll: Zoom</div>
-                <div>⌨️ Tab: Switch Views</div>
               </div>
             </div>
           </>

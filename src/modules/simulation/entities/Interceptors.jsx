@@ -3,11 +3,72 @@ import { useSimStore } from '../../../store/simStore'
 import { TrackingLine } from '../components/TrackingLine'
 import { Trail } from '@react-three/drei'
 import * as THREE from 'three'
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader'
+import { Explosion } from '../components/Explosion'
+import { ImpactStats } from '../components/ImpactStats'
+
+// Shared model loader - reuse the same missile model
+let interceptorModel = null
+let isLoading = false
+let loadCallbacks = []
+
+function loadInterceptorModel(callback) {
+  if (interceptorModel) {
+    callback(interceptorModel)
+    return
+  }
+
+  loadCallbacks.push(callback)
+
+  if (isLoading) return
+  isLoading = true
+
+  const mtlLoader = new MTLLoader()
+  mtlLoader.setPath('/models/')
+  mtlLoader.load('AVMT300.mtl', (materials) => {
+    materials.preload()
+
+    const objLoader = new OBJLoader()
+    objLoader.setMaterials(materials)
+    objLoader.setPath('/models/')
+    objLoader.load('AVMT300.obj', (obj) => {
+      // Enhance materials for interceptor (blue theme)
+      obj.traverse((child) => {
+        if (child.isMesh) {
+          if (child.material) {
+            child.material.metalness = 0.7
+            child.material.roughness = 0.3
+            child.material.emissive = new THREE.Color(0x000022) // Blue glow
+            child.material.emissiveIntensity = 0.3
+            child.material.needsUpdate = true
+          }
+        }
+      })
+
+      interceptorModel = obj
+      loadCallbacks.forEach(cb => cb(obj))
+      loadCallbacks = []
+    })
+  })
+}
 
 function InterceptorMissile({ interceptor }) {
   const ref = useRef()
   const exhaustRef = useRef()
   const [flickerIntensity, setFlickerIntensity] = useState(1)
+  const [model, setModel] = useState(null)
+  const [loadError, setLoadError] = useState(false)
+
+  useEffect(() => {
+    loadInterceptorModel((loadedModel) => {
+      if (loadedModel) {
+        setModel(loadedModel)
+      } else {
+        setLoadError(true)
+      }
+    })
+  }, [])
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -25,11 +86,23 @@ function InterceptorMissile({ interceptor }) {
       const vz = interceptor.velocity[2]
       const speed = Math.sqrt(vx*vx + vy*vy + vz*vz)
       
-      const direction = new THREE.Vector3(vx, vy, vz).normalize()
-      const up = new THREE.Vector3(0, 1, 0)
-      ref.current.quaternion.setFromUnitVectors(up, direction)
-      
-      ref.current.rotation.y += speed * 0.01
+      if (speed > 0.1) {
+        // Create direction vector from velocity
+        const direction = new THREE.Vector3(vx, vy, vz).normalize()
+        
+        // Calculate rotation to align interceptor with velocity
+        const up = new THREE.Vector3(0, 1, 0)
+        const quaternion = new THREE.Quaternion()
+        quaternion.setFromUnitVectors(up, direction)
+        
+        ref.current.quaternion.copy(quaternion)
+        
+        // Add slight roll for realism
+        const horizontalSpeed = Math.sqrt(vx*vx + vz*vz)
+        if (horizontalSpeed > 0.1) {
+          ref.current.rotateOnAxis(direction, speed * 0.005)
+        }
+      }
     }
     
     if (exhaustRef.current) {
@@ -42,6 +115,80 @@ function InterceptorMissile({ interceptor }) {
   const speedMultiplier = interceptor.speedMultiplier || 1
   const isBoosting = speedMultiplier > 1.5
   
+  // Render with 3D model
+  if (model) {
+    return (
+      <Trail
+        width={isBoosting ? 3.5 : 2}
+        length={isBoosting ? 25 : 15}
+        color={isBoosting ? "#00ffff" : "#00ddff"}
+        attenuation={(t) => t * t * t}
+        decay={1}
+      >
+        <group ref={ref}>
+          {/* 3D Interceptor Model - Same as missile */}
+          <primitive 
+            object={model.clone()} 
+            scale={0.25}
+          />
+
+          {/* Rocket exhaust glow - BLUE */}
+          <mesh position={[0, -1.8, 0]}>
+            <sphereGeometry args={[0.4, 16, 16]} />
+            <meshStandardMaterial
+              color={isBoosting ? "#00ffff" : "#0088ff"}
+              emissive={isBoosting ? "#00ffff" : "#0099ff"}
+              emissiveIntensity={2.5 * flickerIntensity}
+              transparent
+              opacity={0.7}
+            />
+          </mesh>
+
+          {/* Exhaust particles - BLUE */}
+          <group ref={exhaustRef} position={[0, -2.2, 0]}>
+            {[...Array(6)].map((_, i) => (
+              <mesh
+                key={i}
+                position={[
+                  Math.cos(i * Math.PI / 3) * 0.25,
+                  -Math.random() * 0.3,
+                  Math.sin(i * Math.PI / 3) * 0.25
+                ]}
+              >
+                <sphereGeometry args={[0.08, 8, 8]} />
+                <meshStandardMaterial
+                  color="#00aaff"
+                  emissive="#0099ff"
+                  emissiveIntensity={flickerIntensity * 2}
+                  transparent
+                  opacity={0.6}
+                />
+              </mesh>
+            ))}
+          </group>
+
+          {/* Main light source - BLUE for ground-to-air */}
+          <pointLight
+            position={[0, -1.5, 0]}
+            color={isBoosting ? "#00ffff" : "#0088ff"}
+            intensity={60 * flickerIntensity}
+            distance={20}
+            decay={2}
+          />
+
+          {/* Warning strobe light - BLUE */}
+          <pointLight
+            position={[0, 0.5, 0]}
+            color="#00ddff"
+            intensity={Math.sin(Date.now() * 0.02) > 0 ? 15 : 0}
+            distance={10}
+          />
+        </group>
+      </Trail>
+    )
+  }
+  
+  // Fallback geometry if model not loaded
   return (
     <Trail
       width={isBoosting ? 3.5 : 2}
@@ -51,7 +198,6 @@ function InterceptorMissile({ interceptor }) {
       decay={1}
     >
       <group ref={ref}>
-        {/* Main warhead */}
         <mesh castShadow>
           <coneGeometry args={[0.5, 3, 12]} />
           <meshStandardMaterial 
@@ -63,7 +209,6 @@ function InterceptorMissile({ interceptor }) {
           />
         </mesh>
         
-        {/* Body */}
         <mesh position={[0, -2, 0]} castShadow>
           <cylinderGeometry args={[0.4, 0.4, 1.5, 12]} />
           <meshStandardMaterial 
@@ -72,121 +217,56 @@ function InterceptorMissile({ interceptor }) {
             roughness={0.2}
           />
         </mesh>
-        
-        {/* Fins */}
-        {[0, 90, 180, 270].map((angle, i) => (
-          <mesh 
-            key={i}
-            position={[
-              Math.cos(angle * Math.PI / 180) * 0.4,
-              -2.5,
-              Math.sin(angle * Math.PI / 180) * 0.4
-            ]}
-            rotation={[0, angle * Math.PI / 180, 0]}
-            castShadow
-          >
-            <boxGeometry args={[0.08, 1, 0.6]} />
-            <meshStandardMaterial color="#004488" metalness={0.8} />
-          </mesh>
-        ))}
-        
-        {/* Rocket exhaust glow */}
-        <mesh position={[0, -3.2, 0]}>
-          <sphereGeometry args={[0.8 * speedMultiplier * 0.5, 16, 16]} />
-          <meshStandardMaterial 
-            color={isBoosting ? "#00ffff" : "#00ccff"} 
-            emissive={isBoosting ? "#00ffff" : "#00ffff"} 
-            emissiveIntensity={2 * flickerIntensity * speedMultiplier * 0.5}
+
+        <mesh position={[0, -3.5, 0]}>
+          <sphereGeometry args={[isBoosting ? 0.6 : 0.4, 16, 16]} />
+          <meshStandardMaterial
+            color={isBoosting ? "#00ffff" : "#0088ff"}
+            emissive={isBoosting ? "#00ffff" : "#0099ff"}
+            emissiveIntensity={2.5 * flickerIntensity}
             transparent
             opacity={0.7}
           />
         </mesh>
-        
-        {/* Exhaust particles */}
-        <group ref={exhaustRef} position={[0, -3.5, 0]}>
-          {[...Array(isBoosting ? 10 : 6)].map((_, i) => (
-            <mesh 
+
+        <group ref={exhaustRef} position={[0, -4, 0]}>
+          {[...Array(8)].map((_, i) => (
+            <mesh
               key={i}
               position={[
-                Math.cos(i * Math.PI / 3) * 0.5,
+                Math.cos(i * Math.PI / 4) * 0.3,
                 -Math.random() * 0.4,
-                Math.sin(i * Math.PI / 3) * 0.5
+                Math.sin(i * Math.PI / 4) * 0.3
               ]}
             >
-              <sphereGeometry args={[0.12, 8, 8]} />
-              <meshStandardMaterial 
-                color="#00ddff"
-                emissive="#00ffff"
-                emissiveIntensity={flickerIntensity * 2 * speedMultiplier * 0.5}
+              <sphereGeometry args={[0.1, 8, 8]} />
+              <meshStandardMaterial
+                color="#00aaff"
+                emissive="#0099ff"
+                emissiveIntensity={flickerIntensity * 2}
                 transparent
                 opacity={0.6}
               />
             </mesh>
           ))}
         </group>
-        
-        {/* Main light source */}
-        <pointLight 
-          position={[0, -2.5, 0]} 
-          color="#00ccff" 
-          intensity={100 * flickerIntensity * speedMultiplier * 0.5} 
-          distance={30 * speedMultiplier * 0.5}
+
+        <pointLight
+          position={[0, -3, 0]}
+          color={isBoosting ? "#00ffff" : "#0088ff"}
+          intensity={80 * flickerIntensity}
+          distance={25}
           decay={2}
         />
-        
-        {/* Heat seeker indicator light */}
-        <pointLight 
-          position={[0, 1, 0]} 
-          color="#00ff00" 
-          intensity={Math.sin(Date.now() * 0.015) > 0 ? 20 : 0} 
-          distance={10}
+
+        <pointLight
+          position={[0, 1, 0]}
+          color="#00ddff"
+          intensity={Math.sin(Date.now() * 0.02) > 0 ? 20 : 0}
+          distance={12}
         />
       </group>
     </Trail>
-  )
-}
-
-function Explosion({ position, onComplete }) {
-  const [scale, setScale] = useState(0)
-  const [opacity, setOpacity] = useState(1)
-  
-  useEffect(() => {
-    const startTime = Date.now()
-    const duration = 1000
-    
-    const animate = () => {
-      const elapsed = Date.now() - startTime
-      const progress = elapsed / duration
-      
-      if (progress >= 1) {
-        onComplete()
-        return
-      }
-      
-      setScale(progress * 8)
-      setOpacity(1 - progress)
-      requestAnimationFrame(animate)
-    }
-    
-    animate()
-  }, [onComplete])
-  
-  return (
-    <group position={position}>
-      <mesh>
-        <sphereGeometry args={[scale, 16, 16]} />
-        <meshBasicMaterial 
-          color="#ff6600" 
-          transparent 
-          opacity={opacity * 0.8}
-        />
-      </mesh>
-      <pointLight 
-        color="#ff6600" 
-        intensity={200 * opacity} 
-        distance={50}
-      />
-    </group>
   )
 }
 
@@ -194,15 +274,38 @@ export default function Interceptors() {
   const interceptors = useSimStore(s => s.interceptors)
   const missiles = useSimStore(s => s.missiles)
   const [explosions, setExplosions] = useState([])
-  
+  const [impactStats, setImpactStats] = useState([])
+
+  // Optimized explosion tracking - prevent memory leaks
   useEffect(() => {
-    const exploded = interceptors.filter(i => i.exploded && !explosions.find(e => e.id === i.id))
-    if (exploded.length > 0) {
-      setExplosions(prev => [...prev, ...exploded.map(i => ({ 
-        id: i.id, 
-        position: i.explosionPos 
-      }))])
-    }
+    const explodedInterceptors = interceptors.filter(i => i.exploded && i.explosionTime)
+    
+    explodedInterceptors.forEach(interceptor => {
+      const existingExplosion = explosions.find(e => e.interceptorId === interceptor.id)
+      if (!existingExplosion && interceptor.explosionPos) {
+        setExplosions(prev => [...prev, {
+          id: `exp-${interceptor.id}-${Date.now()}`,
+          interceptorId: interceptor.id,
+          position: interceptor.explosionPos,
+          time: interceptor.explosionTime
+        }])
+        
+        if (interceptor.impactStats) {
+          setImpactStats(prev => [...prev, {
+            id: `stats-${interceptor.id}-${Date.now()}`,
+            interceptorId: interceptor.id,
+            position: interceptor.explosionPos,
+            stats: interceptor.impactStats,
+            time: interceptor.explosionTime
+          }])
+        }
+      }
+    })
+    
+    // Auto-cleanup old explosions after 2 seconds
+    const now = Date.now()
+    setExplosions(prev => prev.filter(e => (now - e.time) < 2000))
+    setImpactStats(prev => prev.filter(s => (now - s.time) < 3500))
   }, [interceptors])
   
   return (
@@ -225,10 +328,15 @@ export default function Interceptors() {
           onComplete={() => setExplosions(prev => prev.filter(e => e.id !== explosion.id))}
         />
       ))}
+      
+      {impactStats.map(stat => (
+        <ImpactStats
+          key={stat.id}
+          position={stat.position}
+          stats={stat.stats}
+          onComplete={() => setImpactStats(prev => prev.filter(s => s.id !== stat.id))}
+        />
+      ))}
     </>
   )
 }
-
-
-
-
